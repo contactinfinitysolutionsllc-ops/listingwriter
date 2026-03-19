@@ -129,18 +129,12 @@ footer a{color:var(--accent2);text-decoration:none}
   <h1>Listing copy that<br><em>sells the home.</em></h1>
   <p class="hero-sub">Paste in 5 features and get a full MLS description, Instagram caption, and buyer email — all in under 30 seconds. <strong>Stop writing. Start closing.</strong></p>
   <div class="price-strip">
-    <div class="price-pill"><strong>3 free</strong> listings/month</div>
     <div class="price-pill"><strong>$2.99</strong> per listing</div>
     <div class="price-pill"><strong>$15/mo</strong> unlimited</div>
   </div>
 </div>
 
 <div class="app-wrap">
-
-  <div class="free-banner" id="free-banner">
-    <div class="free-left">Free listings remaining this month: <strong id="free-count">3</strong> of 3</div>
-    <div style="font-size:.72rem;color:var(--muted)">Resets monthly</div>
-  </div>
 
   <div class="form-card">
     <div class="form-card-title">Property details</div>
@@ -276,24 +270,9 @@ footer a{color:var(--accent2);text-decoration:none}
 
 <script>
 const WORKER_URL = 'https://justdocs-worker.robertjosephreynolds.workers.dev';
-const FREE_KEY   = 'listing_free';
-const FREE_LIMIT = 3;
 let selectedOutputs = new Set(['mls','social','email']);
 let lastResults = {};
-
-// ── FREE COUNTER ─────────────────────────────────────────
-function getFree(){
-  const d=JSON.parse(localStorage.getItem(FREE_KEY)||'{}');
-  const m=new Date().toISOString().slice(0,7);
-  return d.month===m?(d.count||0):0;
-}
-function incFree(){
-  const m=new Date().toISOString().slice(0,7);
-  localStorage.setItem(FREE_KEY,JSON.stringify({month:m,count:getFree()+1}));
-}
-function updateFreeUI(){
-  document.getElementById('free-count').textContent=Math.max(0,FREE_LIMIT-getFree());
-}
+let subscribedUnlocked = false;
 
 // ── SUBSCRIBER ────────────────────────────────────────────
 async function isSubscribed(){
@@ -347,8 +326,8 @@ async function generate(){
   const features  = document.getElementById('features').value.trim();
   if(!address||!features){alert('Please fill in the address and property features.');return;}
 
-  const subscribed = await isSubscribed();
-  if(!subscribed && getFree()>=FREE_LIMIT){
+  const subscribed = subscribedUnlocked || await isSubscribed();
+  if(!subscribed){
     document.getElementById('paywall').style.display='block';
     document.getElementById('paywall').scrollIntoView({behavior:'smooth'});
     return;
@@ -402,7 +381,7 @@ Use the exact labels (MLS_DESCRIPTION:, SOCIAL_CAPTION:, BUYER_EMAIL:) so the co
       body:JSON.stringify({action:'claude',prompt})});
     const data=await res.json();
     parseAndShow(data.result||'',outputs);
-    if(!subscribed){incFree();updateFreeUI();}
+
   }catch{
     alert('Error generating copy. Please try again.');
   }
@@ -497,20 +476,14 @@ if(window.location.search.includes('paid=true')){
       body:JSON.stringify({action:'addSubscriber',email,app:'listingwriter'})
     }).then(()=>{
       localStorage.setItem('listing_email',email);
-      if(type==='single'){
-        const d=JSON.parse(localStorage.getItem(FREE_KEY)||'{}');
-        const m=new Date().toISOString().slice(0,7);
-        localStorage.setItem(FREE_KEY,JSON.stringify({month:m,count:Math.max(0,(d.count||1)-1)}));
-      }
+      subscribedUnlocked=true;
       localStorage.removeItem('listing_pending_email');
       localStorage.removeItem('listing_pending_type');
-      updateFreeUI();
     });
   }
   window.history.replaceState({},'',window.location.pathname);
 }
 
-updateFreeUI();
 </script>
 </body>
 </html>
