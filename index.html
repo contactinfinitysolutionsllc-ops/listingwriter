@@ -116,9 +116,9 @@ footer a{color:var(--accent2);text-decoration:none}
 <body>
 
 <nav>
-  <a href="https://contactinfinitysolutionsllc-ops.github.io/infinityhub/" class="logo">Infinity<em>.</em>Solutions</a>
+  <a href="https://infinityhub.dev" class="logo">Infinity<em>.</em>Solutions</a>
   <div class="nav-right">
-    <a href="https://contactinfinitysolutionsllc-ops.github.io/infinityhub/" class="nav-back">← Back to hub</a>
+    <a href="https://infinityhub.dev" class="nav-back">← Back to hub</a>
     <span class="nav-badge">Listing Writer AI</span>
   </div>
 </nav>
@@ -265,24 +265,28 @@ footer a{color:var(--accent2);text-decoration:none}
 </div>
 
 <footer>
-  <p>© 2025 <a href="https://contactinfinitysolutionsllc-ops.github.io/infinityhub/">Infinity Solutions LLC</a> · All Rights Reserved</p>
+  <p>© 2025 <a href="https://infinityhub.dev">Infinity Solutions LLC</a> · All Rights Reserved</p>
 </footer>
 
 <script>
 const WORKER_URL = 'https://justdocs-worker.robertjosephreynolds.workers.dev';
 let selectedOutputs = new Set(['mls','social','email']);
 let lastResults = {};
-let subscribedUnlocked = false;
+let subscribedUnlocked = !!localStorage.getItem('listing_email');
 
 // ── SUBSCRIBER ────────────────────────────────────────────
+let _subCache = null;
 async function isSubscribed(){
   const email=localStorage.getItem('listing_email');
   if(!email) return false;
+  if(_subCache !== null) return _subCache;
   try{
     const res=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({action:'checkSubscriber',email,app:'listingwriter'})});
     const data=await res.json();
-    return data.active===true;
+    _subCache = data.active===true;
+    setTimeout(()=>{ _subCache=null; },5*60*1000);
+    return _subCache;
   }catch{return false;}
 }
 
@@ -297,8 +301,10 @@ async function unlockWithEmail(){
     const data=await res.json();
     if(data.active){
       localStorage.setItem('listing_email',email);
+      subscribedUnlocked=true;
+      _subCache=true;
       document.getElementById('paywall').style.display='none';
-      document.getElementById('free-banner').innerHTML='<div class="free-left">✓ <strong>Unlimited</strong> — subscribed as '+email+'</div>';
+      const fb=document.getElementById('free-banner'); if(fb) fb.innerHTML='<div class="free-left">✓ <strong>Unlimited</strong> — subscribed as '+email+'</div>';
       alert('Unlocked! Enjoy unlimited listings.');
     }else{
       alert('No active subscription found. Please subscribe below or try a different email.');
@@ -477,6 +483,7 @@ if(window.location.search.includes('paid=true')){
     }).then(()=>{
       localStorage.setItem('listing_email',email);
       subscribedUnlocked=true;
+      _subCache=true;
       localStorage.removeItem('listing_pending_email');
       localStorage.removeItem('listing_pending_type');
     });
